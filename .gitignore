@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Forge
+.forge/
+manifest-*.yml
+
+# Build output (Custom UI is rebuilt from static/*/src)
+dist/
+**/dist/
+
+# Secrets / local env — never commit
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs / editor / OS
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

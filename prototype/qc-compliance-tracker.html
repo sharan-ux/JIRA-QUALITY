@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QC Compliance Tracker — prototype</title>
+<style>
+  /* ---- OCW v4 tokens (light + dark) ---- */
+  :root{
+    --navy:#20319d; --green:#12b76a; --violet:#7924ff; --blue:#2970ff; --amber:#f79009; --red:#eb2e2e;
+    --bg:#f4f5f7; --card:#ffffff; --card2:#f8fafc; --border:#e4e7ec; --text:#172b4d; --muted:#5e6c84; --subtle:#8a94a6;
+    --done:#12b76a; --current:#f79009; --todo:#c6cdd8; --blocked:#eb2e2e; --coo:#7924ff;
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.04);
+    --radius:12px;
+  }
+  html.dark{
+    --bg:#0f1622; --card:#1c293c; --card2:#16212f; --border:#2b3547; --text:#f8fafc; --muted:#c9cfe0; --subtle:#94a3b8;
+    --todo:#3a465a; --shadow:none;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Funnel Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+  .wrap{max-width:1320px;margin:0 auto;padding:20px 22px 60px}
+
+  /* header */
+  .top{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .top h1{font-size:19px;font-weight:700;margin:0}
+  .top .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .spacer{flex:1}
+  .toggle{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+  .toggle:hover{border-color:var(--subtle)}
+
+  /* tabs */
+  .tabs{display:inline-flex;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:16px}
+  .tabs button{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:13px;padding:7px 18px;border-radius:8px;cursor:pointer}
+  .tabs button.on{background:var(--card);color:var(--navy);box-shadow:var(--shadow)}
+  html.dark .tabs button.on{color:#9db2ff}
+
+  /* tiles */
+  .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+  .tile{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
+  .tile .l{color:var(--muted);font-size:11.5px;font-weight:500;margin-bottom:7px}
+  .tile .v{font-size:23px;font-weight:700;letter-spacing:-.5px}
+  .tile .v.green{color:var(--done)} .tile .v.amber{color:var(--current)} .tile .v.red{color:var(--blocked)} .tile .v.violet{color:var(--coo)}
+
+  /* card + table */
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .panel-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .panel-head h2{font-size:14px;margin:0;font-weight:700}
+  .panel-head .hint{color:var(--subtle);font-size:11.5px}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.03em}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--card2)}
+  tbody tr:last-child td{border-bottom:0}
+  .k{color:var(--navy);font-weight:700;font-size:12px}
+  html.dark .k{color:#9db2ff}
+  .sum{font-weight:600;font-size:13px}
+  .row-sub{color:var(--subtle);font-size:11.5px;margin-top:2px}
+
+  /* phase rail */
+  .rail{display:flex;gap:3px;align-items:center}
+  .seg{width:14px;height:9px;border-radius:2px;background:var(--todo)}
+  .seg.done{background:var(--done)} .seg.current{background:var(--current)} .seg.blocked{background:var(--blocked)}
+  .seg.coo{background:var(--coo)}
+
+  /* pct bar */
+  .bar{width:96px;height:7px;border-radius:5px;background:var(--todo);overflow:hidden;display:inline-block;vertical-align:middle}
+  .bar>i{display:block;height:100%;background:var(--navy);border-radius:5px}
+  html.dark .bar>i{background:#6f86ff}
+  .pctnum{font-size:11.5px;color:var(--muted);margin-left:8px}
+
+  /* chips */
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .chip.grey{background:#eceef1;color:#5e6c84} .chip.amber{background:#fff4e5;color:#b54708}
+  .chip.green{background:#e6f6ee;color:#067647} .chip.red{background:#fdeaea;color:#b42318}
+  .chip.violet{background:#f2ebff;color:#5b21b6} .chip.blue{background:#e8f0ff;color:#1d4ed8}
+  html.dark .chip.grey{background:#2b3547;color:#c9cfe0} html.dark .chip.amber{background:#3a2c14;color:#fdb022}
+  html.dark .chip.green{background:#123524;color:#6ce9a6} html.dark .chip.red{background:#3a1a1a;color:#fda29b}
+  html.dark .chip.violet{background:#2a1d47;color:#c4b0ff} html.dark .chip.blue{background:#16264a;color:#84a9ff}
+  .sev{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px}
+  .sev.crit{background:#fdeaea;color:#b42318} .sev.high{background:#fff4e5;color:#b54708}
+  .sev.med{background:#e8f0ff;color:#1d4ed8} .sev.low{background:#eceef1;color:#5e6c84}
+  html.dark .sev.crit{background:#3a1a1a;color:#fda29b} html.dark .sev.high{background:#3a2c14;color:#fdb022}
+  html.dark .sev.med{background:#16264a;color:#84a9ff} html.dark .sev.low{background:#2b3547;color:#c9cfe0}
+
+  .owner{color:var(--muted);font-size:12px}
+
+  /* drawer */
+  .scrim{position:fixed;inset:0;background:rgba(9,17,33,.45);opacity:0;pointer-events:none;transition:opacity .18s}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:clamp(560px,52vw,900px);background:var(--bg);border-left:1px solid var(--border);
+          transform:translateX(100%);transition:transform .22s ease;overflow:auto;box-shadow:-8px 0 24px rgba(9,17,33,.18)}
+  .drawer.open{transform:none}
+  .d-head{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);padding:16px 20px;z-index:2}
+  .d-head .x{float:right;border:0;background:transparent;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
+  .d-title{font-size:16px;font-weight:700;margin:2px 0 4px}
+  .d-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .d-body{padding:16px 20px}
+  .d-overall{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+  .d-overall>div:last-child{min-width:0}
+  .d-overall .big{font-size:26px;font-weight:800;letter-spacing:-1px}
+
+  /* phase rows in drawer */
+  .ph{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .ph.cur{border-color:var(--current);box-shadow:0 0 0 1px var(--current) inset}
+  .ph-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 13px;cursor:pointer}
+  .ph-row:hover{background:var(--card2)}
+  .ph-n{width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;display:grid;place-items:center;background:var(--todo);color:#fff}
+  .ph-n.done{background:var(--done)} .ph-n.current{background:var(--current)} .ph-n.blocked{background:var(--blocked)}
+  .ph-name{font-weight:600;font-size:13px}
+  .ph-owner{color:var(--subtle);font-size:11px;margin-top:1px}
+  .ph-right{display:flex;gap:10px;align-items:center}
+  .signoff{font-size:11px;color:var(--muted);text-align:right;line-height:1.4}
+  .signoff b{color:var(--text);font-weight:600}
+  .signoff .coo{color:var(--coo);font-weight:600}
+  .caret{color:var(--subtle);font-size:11px;width:12px}
+
+  /* checklist */
+  .cl{border-top:1px dashed var(--border);padding:6px 13px 12px;display:none;background:var(--card2)}
+  .cl.open{display:block}
+  .cl-item{display:grid;grid-template-columns:18px 1fr auto;gap:9px;align-items:start;padding:7px 0;border-bottom:1px solid var(--border)}
+  .cl-item:last-child{border-bottom:0}
+  .box{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--subtle);margin-top:1px;display:grid;place-items:center;font-size:11px;color:#fff}
+  .box.done{background:var(--done);border-color:var(--done)}
+  .cl-txt{font-size:12px}
+  .cl-txt .own{color:var(--subtle);font-size:10.5px;margin-top:2px}
+  .cl-by{font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap}
+  .cl-item.coo .cl-txt{color:var(--coo);font-weight:600}
+  .notes{font-size:11px;color:var(--muted);margin-top:8px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+  .notes b{color:var(--text)}
+
+  @media (max-width:785px){
+    .tiles{grid-template-columns:repeat(2,1fr)}
+    .drawer{width:100%;box-shadow:none}
+    .hide-sm{display:none}
+    thead th.hide-sm{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>QC Compliance Tracker</h1>
+      <div class="sub">Phase-gate compliance across every item — sourced from per-phase checklists &amp; sign-offs · prototype</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="toggle" id="theme">🌙 Dark</button>
+  </div>
+
+  <div class="tabs">
+    <button id="tab-feature" class="on" onclick="setKind('feature')">Features · 16 phases</button>
+    <button id="tab-bug" onclick="setKind('bug')">Bugs · 7 phases</button>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2 id="cockpit-title">Master Tracker — Features</h2>
+      <span class="hint">click any row for its full sign-off tracker &amp; checklists</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Item</th>
+        <th class="hide-sm">Type</th>
+        <th class="hide-sm">Phase pipeline</th>
+        <th>Current phase</th>
+        <th class="hide-sm">% complete</th>
+        <th>Overall status</th>
+        <th class="hide-sm">Next gate</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer"></div>
+
+<script>
+/* ---------- phase definitions ---------- */
+const FEATURE_PHASES = ["Knowledge","BA","To Do","UI/UX","Development","QA Scheduled","In QA","QA Passed","Mgmt Approval","Approved","Compliance Sign-off","Deployment","Sales & Support Training","Marketing Training","Done","BA Review"];
+const BUG_PHASES = ["Triage / To Do","In Progress","QA Scheduled","In QA","QA Passed","Deployment","Done"];
+const OWNER = {"Knowledge":"Marketing / Sales / Support Leads","BA":"BA","To Do":"PM / Eng Lead","UI/UX":"Design Lead","Development":"Eng Lead","QA Scheduled":"QA Lead","In QA":"QA","QA Passed":"QA Lead","Mgmt Approval":"Management","Approved":"Eng Lead","Compliance Sign-off":"Compliance","Deployment":"DevOps","Sales & Support Training":"Sales / Support Lead","Marketing Training":"Marketing Lead","Done":"PM","BA Review":"BA","Triage / To Do":"Eng Lead / QA Lead","In Progress":"Dev"};
+
+/* sample checklist items per phase (representative — real UI/UX items shown in full) */
+const UIUX_ITEMS = [
+ "Approved hi-fi mockups for every screen & state, from the design system + tokens",
+ "Visual hierarchy makes financial data instantly scannable",
+ "Review + confirmation + receipt on money-moving flows; no dark patterns",
+ "Loading / empty / error / success states specified per screen",
+ "Desktop + ≤785px, Light + Dark, using real theme tokens",
+ "WCAG 2.2 AA: contrast, focus, keyboard, adjustable text, SR labels",
+ "Plain-language microcopy; fees/rates/timing/disclosures inline",
+ "Consistent currency/date formatting; data-viz per design system",
+ "Trust & security affordances + human-escalation path",
+ "Design review done; Design Lead signs off + handoff to Dev",
+ "COO (or delegate) sign-off recorded — name + date"];
+const GENERIC = {
+ "Knowledge":["One-page brief approved & attached","Marketing/Sales/Support briefed + named POCs","Leads acknowledged in the epic","COO sign-off recorded — name + date"],
+ "Development":["Coding standards enforced via CI","Unit tests meet coverage threshold","Peer-reviewed, no self-merge","Sensitive-data handling reviewed","COO sign-off recorded — name + date"],
+ "Compliance Sign-off":["Data-privacy impact reviewed","Security review complete","PCI DSS / NACHA / GLBA reviewed","Named compliance officer sign-off","COO sign-off recorded — name + date"],
+ "_default":["Entry criteria met","Primary phase item verified","Exit / sign-off criteria met","COO sign-off recorded — name + date"]
+};
+function itemsFor(ph){ return ph==="UI/UX"?UIUX_ITEMS : (GENERIC[ph]||GENERIC._default); }
+
+/* ---------- sample data ---------- */
+const NAMES=["A. Rahman","S. Nair","J. Justin","R. Joseph","M. Shaaran","P. Kumar"];
+function mkPhases(list, currentIdx, blockedIdx){
+  return list.map((name,i)=>{
+    let st = i<currentIdx?"done" : i===currentIdx?(i===blockedIdx?"blocked":"current") : "todo";
+    const items = itemsFor(name);
+    const total = items.length;
+    let doneN = st==="done"?total : st==="current"?Math.max(1,Math.round(total*0.55)) : st==="blocked"?total-1 : 0;
+    const cooChecked = st==="done";
+    const cl = items.map((t,j)=>({txt:t, owner:OWNER[name], done: j<doneN, coo:/COO/.test(t),
+        by: j<doneN?NAMES[(i+j)%NAMES.length]:null, date: j<doneN?`Jul ${5+((i+j)%22)}`:null}));
+    const pct = Math.round(doneN/total*100);
+    const status = st==="done"?"Complete" : (st==="blocked"?"Blocked" : (doneN>0?"In Progress":"Not Started"));
+    return {name, owner:OWNER[name], state:st, pct, status,
+      approver: st==="done"?NAMES[i%NAMES.length]:(st==="current"?null:null),
+      approverDate: st==="done"?`Jul ${8+(i%20)}`:null,
+      coo: cooChecked?"J. Justin (COO)":null, cooDate: cooChecked?`Jul ${10+(i%18)}`:null,
+      notes: st==="blocked"?"Awaiting COO sign-off — flagged in weekly review.":"",
+      checklist: cl};
+  });
+}
+const DATA = {
+ feature:[
+  {key:"OCW-21403", sum:"SEND-PAYMENT-2.1", type:"Feature", phases:mkPhases(FEATURE_PHASES,4)},
+  {key:"OCW-20980", sum:"Zil Assistant (agentic AI)", type:"Feature", phases:mkPhases(FEATURE_PHASES,1)},
+  {key:"OCW-19871", sum:"Developer Platform OAuth", type:"Feature", phases:mkPhases(FEATURE_PHASES,10,10)},
+  {key:"OCW-18402", sum:"Wallet redesign", type:"Feature", phases:mkPhases(FEATURE_PHASES,15)},
+  {key:"OCW-21120", sum:"Deluxe card processing", type:"Feature", phases:mkPhases(FEATURE_PHASES,3)},
+ ],
+ bug:[
+  {key:"OCW-21550", sum:"FBO balance mismatch", type:"Bug", sev:"crit", phases:mkPhases(BUG_PHASES,5)},
+  {key:"OCW-21490", sum:"Dev auto-logout on 401", type:"Bug", sev:"high", phases:mkPhases(BUG_PHASES,3)},
+  {key:"OCW-21377", sum:"ocw_invoices full-scan", type:"Bug", sev:"med", phases:mkPhases(BUG_PHASES,1)},
+  {key:"OCW-21301", sum:"Check reprint label typo", type:"Bug", sev:"low", phases:mkPhases(BUG_PHASES,6)},
+ ]
+};
+
+/* ---------- rendering ---------- */
+let KIND="feature";
+const SEVLBL={crit:"Critical",high:"High",med:"Medium",low:"Low"};
+function currentPhase(it){ const i=it.phases.findIndex(p=>p.state==="current"||p.state==="blocked"); return i<0?(it.phases.every(p=>p.state==="done")?it.phases.length-1:0):i; }
+function overall(it){
+  if(it.phases.every(p=>p.state==="done")) return {t:"Complete",c:"green"};
+  if(it.phases.some(p=>p.state==="blocked")) return {t:"Blocked",c:"red"};
+  return {t:"In Progress",c:"amber"};
+}
+function statusChip(o){ return `<span class="chip ${o.c}">${o.t}</span>`; }
+
+function render(){
+  const items = DATA[KIND];
+  document.getElementById("cockpit-title").textContent = "Master Tracker — "+(KIND==="feature"?"Features":"Bugs");
+  // tiles
+  const blocked = items.filter(i=>i.phases.some(p=>p.state==="blocked")).length;
+  const done = items.filter(i=>i.phases.every(p=>p.state==="done")).length;
+  const awaitCOO = items.filter(i=>{const c=currentPhase(i);const p=i.phases[c];return p && p.state!=="done" && p.checklist.some(x=>x.coo&&!x.done)&&p.pct>=60;}).length;
+  const tiles=[["Total items",items.length,""],["In progress",items.length-done-blocked,"amber"],["Blocked on a gate",blocked,"red"],["Awaiting COO sign-off",awaitCOO,"violet"],["Completed",done,"green"]];
+  document.getElementById("tiles").innerHTML = tiles.map(t=>`<div class="tile"><div class="l">${t[0]}</div><div class="v ${t[2]}">${t[1]}</div></div>`).join("");
+  // rows
+  document.getElementById("rows").innerHTML = items.map((it,idx)=>{
+    const ci=currentPhase(it); const cp=it.phases[ci]; const o=overall(it);
+    const rail = it.phases.map(p=>{let c=p.state==="done"?"done":p.state==="current"?"current":p.state==="blocked"?"blocked":"";return `<span class="seg ${c}" title="${p.name}: ${p.status}"></span>`;}).join("");
+    const donePct = Math.round(it.phases.filter(p=>p.state==="done").length/it.phases.length*100);
+    const typeCell = it.type==="Bug" ? `<span class="sev ${it.sev}">${SEVLBL[it.sev]}</span>` : `<span class="chip blue">Feature</span>`;
+    return `<tr onclick="openDrawer('${KIND}',${idx})">
+      <td><span class="k">${it.key}</span><div class="sum">${it.sum}</div></td>
+      <td class="hide-sm">${typeCell}</td>
+      <td class="hide-sm"><div class="rail">${rail}</div></td>
+      <td><span class="chip ${cp.state==="blocked"?"red":cp.state==="done"?"green":"amber"}">${cp.name}</span></td>
+      <td class="hide-sm"><span class="bar"><i style="width:${donePct}%"></i></span><span class="pctnum">${donePct}%</span></td>
+      <td>${statusChip(o)}</td>
+      <td class="hide-sm owner">${o.t==="Complete"?"—":cp.owner}</td>
+    </tr>`;
+  }).join("");
+}
+
+function setKind(k){ KIND=k; document.getElementById("tab-feature").classList.toggle("on",k==="feature"); document.getElementById("tab-bug").classList.toggle("on",k==="bug"); render(); }
+
+/* ---------- drawer ---------- */
+function openDrawer(kind,idx){
+  const it=DATA[kind][idx];
+  const donePct=Math.round(it.phases.filter(p=>p.state==="done").length/it.phases.length*100);
+  const o=overall(it);
+  const typeCell = it.type==="Bug" ? `<span class="sev ${it.sev}">${SEVLBL[it.sev]}</span>` : `<span class="chip blue">Feature</span>`;
+  const phaseRows = it.phases.map((p,i)=>{
+    const nCls=p.state==="done"?"done":p.state==="current"?"current":p.state==="blocked"?"blocked":"";
+    const sign = p.approver ? `<b>${p.approver}</b> · ${p.approverDate}` : `<span style="color:var(--subtle)">— not signed —</span>`;
+    const coo = p.coo ? `<span class="coo">${p.coo}</span> · ${p.cooDate}` : `<span style="color:var(--subtle)">COO —</span>`;
+    const cl = p.checklist.map(c=>`<div class="cl-item ${c.coo?'coo':''}">
+        <span class="box ${c.done?'done':''}">${c.done?'✓':''}</span>
+        <div class="cl-txt">${c.txt}<div class="own">${c.owner}</div></div>
+        <div class="cl-by">${c.done?(c.by+'<br>'+c.date):'—'}</div></div>`).join("");
+    return `<div class="ph ${p.state==='current'||p.state==='blocked'?'cur':''}">
+      <div class="ph-row" onclick="this.parentNode.querySelector('.cl').classList.toggle('open');this.querySelector('.caret').textContent=this.parentNode.querySelector('.cl').classList.contains('open')?'▾':'▸'">
+        <span class="ph-n ${nCls}">${i+1}</span>
+        <div><div class="ph-name">${p.name}</div><div class="ph-owner">${p.owner}</div></div>
+        <div class="ph-right">
+          <span class="chip ${p.status==='Complete'?'green':p.status==='Blocked'?'red':p.status==='In Progress'?'amber':'grey'}">${p.pct}% · ${p.status}</span>
+          <div class="signoff">${sign}<br>${coo}</div>
+          <span class="caret">▸</span>
+        </div>
+      </div>
+      <div class="cl">${cl}${p.notes?`<div class="notes"><b>Notes:</b> ${p.notes}</div>`:''}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("drawer").innerHTML = `
+    <div class="d-head">
+      <button class="x" onclick="closeDrawer()">×</button>
+      <div class="k">${it.key}</div>
+      <div class="d-title">${it.sum}</div>
+      <div class="d-meta">${typeCell} ${statusChip(o)} <span class="owner">${it.phases.length} phases</span></div>
+    </div>
+    <div class="d-body">
+      <div class="d-overall">
+        <div><div class="big">${donePct}%</div><div class="owner">phases complete</div></div>
+        <div style="flex:1"><span class="bar" style="width:100%"><i style="width:${donePct}%"></i></span>
+          <div class="owner" style="margin-top:8px">Master Sign-off Tracker — one row per phase · expand for checklist</div></div>
+      </div>
+      ${phaseRows}
+    </div>`;
+  document.getElementById("drawer").classList.add("open");
+  document.getElementById("scrim").classList.add("open");
+}
+function closeDrawer(){ document.getElementById("drawer").classList.remove("open"); document.getElementById("scrim").classList.remove("open"); }
+
+/* theme */
+document.getElementById("theme").onclick=function(){
+  const d=document.documentElement.classList.toggle("dark");
+  this.textContent=d?"☀️ Light":"🌙 Dark";
+};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer();});
+render();
+</script>
+</body>
+</html>

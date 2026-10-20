@@ -1,0 +1,65 @@
+modules:
+  jira:dashboardGadget:
+    - key: launch-dashboard-dashboard-gadget-ui-kit-2-hello-world-gadget
+      title: " "
+      description: Epic launch status — stage & phase progress, due this week, upcoming BA reviews.
+      thumbnail: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+      resource: main-resource
+      resolver:
+        function: resolver
+  jira:globalPage:
+    - key: qc-compliance-tracker
+      title: Quality Check Tracker ZilMoney
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+      layout: native
+      resource: compliance-resource
+      resolver:
+        function: compliance-resolver
+  trigger:
+    - key: qc-provision-epic
+      function: qc-provision
+      events:
+        - avi:jira:created:issue
+        - avi:jira:updated:issue
+    # qc-qa-loop trigger REMOVED — the old auto-copy-checklist-to-Development-story on QA-fail is
+    # replaced by the dashboard's per-sub-task Defects → manual triage/push flow. qaloop.js kept as
+    # legacy reference only (unwired).
+    - key: qc-qa-rename
+      function: qc-qa-rename-fn
+      events:
+        - avi:jira:updated:issue
+  webtrigger:
+    - key: daily-digest
+      function: daily-digest-fn
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: compliance-resolver
+      handler: compliance.handler
+    - key: qc-provision
+      handler: provision.handler
+    - key: qc-qa-rename-fn
+      handler: qarename.handler
+    - key: daily-digest-fn
+      handler: daily-digest.handler
+resources:
+  - key: main-resource
+    path: static/dashboard/dist
+  - key: compliance-resource
+    path: static/compliance/dist
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - storage:app
+  external:
+    fetch:
+      backend:
+        - "openrouter.ai"
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/e3c9c070-2b19-4f78-a633-52657ad68faf
